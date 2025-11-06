@@ -1,0 +1,13 @@
+#IF ( NOT ( DEFINED PROJECT_HJK ) )
+#DEFINE PROJECT_HJK 0
+
+EXTERN PROJECT_WINDOW: Window
+EXTERN menu_bar : Menu
+
+EXTERN FN HandleMenuClick (
+    IN menu : UWORD,
+    IN item : UWORD,
+)
+EXTERN FN Project_InitWindow()
+
+#END

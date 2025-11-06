@@ -1,0 +1,247 @@
+// fox32rom routine definitions for Jackal
+
+#ASM [
+// fox32rom routine definitions
+
+// system jump table
+scancode_to_ascii:                        jmp [0xF0040020]
+shift_pressed:                            jmp [0xF0040024]
+shift_released:                           jmp [0xF0040028]
+caps_pressed:                             jmp [0xF004002C]
+
+// generic drawing jump table
+set_tilemap:                              jmp [0xF0041018]
+
+// overlay jump table
+fill_overlay:                             jmp [0xF0043000]
+draw_str_to_overlay:                      jmp [0xF0043004]
+// ...
+draw_font_tile_to_overlay:                jmp [0xF0043014]
+draw_tile_to_overlay:                     jmp [0xF0043018]
+draw_filled_rectangle_to_overlay:         jmp [0xF0043020]
+enable_overlay:                           jmp [0xF004302C]
+disable_overlay:                          jmp [0xF0043030]
+move_overlay:                             jmp [0xF0043034]
+resize_overlay:                           jmp [0xF0043038]
+set_overlay_framebuffer_pointer:          jmp [0xF004303C]
+//get_unused_overlay:                       jmp [0xF0043040]
+
+// menu bar jump table
+menu_bar_click_event:                     jmp [0xF0044008]
+close_menu:                               jmp [0xF0044018]
+menu_update_event:                        jmp [0xF004401C]
+
+// disk jump table
+is_romdisk_available:                     jmp [0xF0045028]
+is_ramdisk_formatted:                     jmp [0xF0045038]
+// ...
+ryfs_get_file_list:                       jmp [0xF004501C]
+
+// memory copy/compare jump table
+copy_memory_bytes:                        jmp [0xF0046000]
+copy_string:                              jmp [0xF0046008]
+compare_memory_bytes:                     jmp [0xF004600C]
+compare_string:                           jmp [0xF0046014]
+string_length:                            jmp [0xF0046018]
+
+// integer jump table
+string_to_int:                            jmp [0xF0047000]
+
+
+
+// implmentations
+
+ScancodeToAscii:
+.global ScancodeToAscii
+    mov r0, a0
+    call scancode_to_ascii
+    mov a3, r0
+    ret
+ShiftPressed:
+.global ShiftPressed
+    jmp shift_pressed
+ShiftReleased:
+.global ShiftReleased
+    jmp shift_released
+CapsPressed:
+.global CapsPressed
+    jmp caps_pressed
+GetMouseButtons:
+.global GetMouseButtons
+    in a3, 0x80000400
+    ret
+
+SetTilemap:
+.global SetTilemap
+    mov r0, a0
+    mov r1, a1
+    mov r2, a2
+    jmp set_tilemap
+
+FillOverlay:
+.global FillOverlay
+    mov r0, a0
+    mov r1, a1
+    jmp fill_overlay
+DrawStrToOverlay:
+.global DrawStrToOverlay
+    mov r0, a0
+    mov r1, a1
+    mov r2, a2
+    mov r3, a3
+    mov r4, [rsp+4]
+    mov r5, [rsp+8]
+    call draw_str_to_overlay
+    mov a0, r1
+    ret
+DrawTileToOverlay:
+.global DrawTileToOverlay
+    mov r0, a0
+    mov r1, a1
+    mov r2, a2
+    mov r3, a3
+    jmp draw_tile_to_overlay
+DrawFontTileToOverlay:
+.global DrawFontTileToOverlay
+    mov r0, a0
+    mov r1, a1
+    mov r2, a2
+    mov r3, a3
+    mov r4, [rsp+4]
+    mov r5, [rsp+8]
+    jmp draw_font_tile_to_overlay
+DrawFilledRectangleToOverlay:
+.global DrawFilledRectangleToOverlay
+    mov r0, a0
+    mov r1, a1
+    mov r2, a2
+    mov r3, a3
+    mov r4, [rsp+4]
+    mov r5, [rsp+8]
+    jmp draw_filled_rectangle_to_overlay
+EnableOverlay:
+.global EnableOverlay
+    mov r0, a0
+    jmp enable_overlay
+DisableOverlay:
+.global DisableOverlay
+    mov r0, a0
+    jmp disable_overlay
+MoveOverlay:
+.global MoveOverlay
+    mov r0, a1
+    mov r1, a2
+    mov r2, a0
+    jmp move_overlay
+ResizeOverlay:
+.global ResizeOverlay
+    mov r0, a1
+    mov r1, a2
+    mov r2, a0
+    jmp resize_overlay
+SetOverlayFramebufferPointer:
+.global SetOverlayFramebufferPointer
+    mov r0, a1
+    mov r1, a0
+    jmp set_overlay_framebuffer_pointer
+get_unused_overlay:
+    push r1
+    push r31
+
+    mov r0, 0x8000031f
+    mov r31, 31
+get_unused_overlay_loop:
+    in r1, r0
+    cmp r1, 0
+    ifz jmp get_unused_overlay_found
+    dec r0
+    loop get_unused_overlay_loop
+    mov r0, 0xFF
+
+    pop r31
+    pop r1
+    ret
+get_unused_overlay_found:
+    and r0, 0x000000FF
+
+    pop r31
+    pop r1
+    ret
+GetUnusedOverlay:
+.global GetUnusedOverlay
+    call get_unused_overlay
+    mov a3, r0
+    ret
+
+MenuBarClickEvent:
+.global MenuBarClickEvent
+    mov r0, a0
+    mov r1, a1
+    jmp menu_bar_click_event
+CloseMenu:
+.global CloseMenu
+    mov r0, a0
+    jmp close_menu
+MenuUpdateEvent:
+.global MenuUpdateEvent
+    mov r1, a0
+    mov r2, a1
+    mov r3, a2
+    jmp menu_update_event
+
+IsRomDiskAvailable:
+.global IsRomDiskAvailable
+    call is_romdisk_available
+    ifz movz.8 a3, 1
+    ifnz movz.8 a3, 0
+    ret
+IsRamDiskFormatted:
+.global IsRamDiskFormatted
+    call is_ramdisk_formatted
+    ifz movz.8 a3, 1
+    ifnz movz.8 a3, 0
+    ret
+GetFileList:
+.global GetFileList
+    mov r0, a0
+    mov r1, a1
+    mov r2, a2
+    call ryfs_get_file_list
+    mov a3, r0
+    ret
+
+CopyMemoryBytes:
+.global CopyMemoryBytes
+    mov r0, a0
+    mov r1, a1
+    mov r2, a2
+    jmp copy_memory_bytes
+CopyString:
+.global CopyString
+    mov r0, a0
+    mov r1, a1
+    jmp copy_string
+CompareMemory:
+.global CompareMemory
+    mov r0, a0
+    mov r1, a1
+    mov r2, a2
+    call compare_memory_bytes
+    ifz movz.8 a3, 1
+    ifnz movz.8 a3, 0
+    ret
+CompareString:
+.global CompareString
+    mov r0, a0
+    mov r1, a1
+    call compare_string
+    ifz movz.8 a3, 1
+    ifnz movz.8 a3, 0
+    ret
+StringLength:
+.global StringLength
+    mov r0, a0
+    call string_length
+    mov a3, r0
+    ret
+]

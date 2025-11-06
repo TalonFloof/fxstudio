@@ -1,0 +1,135 @@
+#DEFINE BLD_BITS 32
+#DEFINE ARCHITECTURE "fox32"
+#INCLUDE "sys/rtl.hjk"
+#INCLUDE "qoidecode.hjk"
+#INCLUDE "sys/os.hjk"
+// Direct port of qoi reference implementation
+//    https://github.com/phoboslab/qoi/blob/master/qoi.h
+//    Copyright (c) 2021, Dominic Szablewski - https://phoboslab.org
+//    SPDX-License-Identifier: MIT
+
+#DEFINE QOI_OP_INDEX  0x00 // 00xxxxxx
+#DEFINE QOI_OP_DIFF   0x40 // 01xxxxxx
+#DEFINE QOI_OP_LUMA   0x80 // 10xxxxxx
+#DEFINE QOI_OP_RUN    0xc0 // 11xxxxxx
+#DEFINE QOI_OP_RGB    0xfe // 11111110
+#DEFINE QOI_OP_RGBA   0xff // 11111111
+
+#DEFINE QOI_MASK_2    0xc0 // 11000000
+#DEFINE QOI_HEADER_SIZE 14
+
+STRUCT PACKED QoiRawRGBA
+    r: UBYTE,
+    g: UBYTE,
+    b: UBYTE,
+    a: UBYTE,
+END
+UNION QoiRGBA
+    rgba: QoiRawRGBA,
+    v: ULONG,
+END
+
+// Used since QOI files are Big Endian
+FN QoiRead32(IN bytes: ^UBYTE, IN p: LONG): ULONG
+    a: UINT = bytes[p]
+    p += 1
+    b: UINT = bytes[p]
+    p += 1
+    c: UINT = bytes[p]
+    p += 1
+    d: UINT = bytes[p]
+    p += 1
+    RETURN (a << 24) | (b << 16) | (c << 8) | d
+END
+
+FN QoiDecode(IN data: ^VOID, IN size: ULONG, IN desc: ^QoiDesc): ^VOID
+    // TIME TO INITIALIZE A BUNCH OF VARIABLES, YIPPEEE!!!111!!!11!!!!1!!
+    bytes: ^UBYTE = NULLPTR
+    pixels: ^UBYTE = NULLPTR
+    index: QoiRGBA[64]
+    px: QoiRGBA
+    px_len: ULONG = 0
+    chunks_len: ULONG = 0
+    px_pos: LONG = 0
+    p: LONG = 0
+    run: ULONG = 0
+
+    IF data == NULLPTR OR desc == NULLPTR OR size < QOI_HEADER_SIZE + 8 THEN
+        RETURN NULLPTR
+    END
+
+    bytes = CAST data TO ^UBYTE
+    p += 4
+    desc^.width = QoiRead32(bytes,p)
+    p += 4
+    desc^.height = QoiRead32(bytes,p)
+    p += 4
+    desc^.channels = 1 // This implementation only uses RGBA for compatibility with fox32 overlays
+    p += 1
+    desc^.colorspace = bytes[p]
+    p += 1
+    px_len = desc^.width * desc^.height * 4
+    pixels = CAST AllocateMemory(px_len) TO ^UBYTE
+    IF pixels == NULLPTR THEN RETURN NULLPTR END
+
+    i := 0
+    WHILE i < 64 DO
+        index[i].v = 0
+        i += 1
+    END
+
+    px.rgba.r = 0
+    px.rgba.g = 0
+    px.rgba.b = 0
+    px.rgba.a = 255
+
+    chunks_len = size - 8
+    WHILE px_pos < px_len DO
+        IF run > 0 THEN 
+            run -= 1
+        ELSEIF p < chunks_len THEN
+            b1 := bytes[p]
+            p += 1
+            IF b1 == QOI_OP_RGB THEN
+                px.rgba.r = bytes[p]
+                p += 1
+                px.rgba.g = bytes[p]
+                p += 1
+                px.rgba.b = bytes[p]
+                p += 1
+            ELSEIF b1 == QOI_OP_RGBA THEN
+                px.rgba.r = bytes[p]
+                p += 1
+                px.rgba.g = bytes[p]
+                p += 1
+                px.rgba.b = bytes[p]
+                p += 1
+                px.rgba.a = bytes[p]
+                p += 1
+            ELSEIF (b1 & QOI_MASK_2) == QOI_OP_INDEX THEN
+                px.v = index[b1].v
+            ELSEIF (b1 & QOI_MASK_2) == QOI_OP_DIFF THEN
+                px.rgba.r += ((b1 >> 4) & 0x03) - 2
+				px.rgba.g += ((b1 >> 2) & 0x03) - 2
+				px.rgba.b += ( b1       & 0x03) - 2
+            ELSEIF (b1 & QOI_MASK_2) == QOI_OP_LUMA THEN
+                b2 := bytes[p]
+                p += 1
+                vg := (b1 & 0x3f) - 32
+                px.rgba.r += vg - 8 + ((b2 >> 4) & 0x0f)
+				px.rgba.g += vg
+				px.rgba.b += vg - 8 +  (b2       & 0x0f)
+            ELSEIF (b1 & QOI_MASK_2) == QOI_OP_RUN THEN
+                run = (b1 & 0x3f)
+            END
+        END
+        index[(px.rgba.r*3 + px.rgba.g*5 + px.rgba.b*7 + px.rgba.a*11) & (64 - 1)].v = px.v
+
+        pixels[px_pos + 0] = px.rgba.r
+		pixels[px_pos + 1] = px.rgba.g
+		pixels[px_pos + 2] = px.rgba.b
+        pixels[px_pos + 3] = px.rgba.a
+        px_pos += 4
+    END
+    RETURN pixels
+END

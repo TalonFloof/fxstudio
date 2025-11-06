@@ -1,0 +1,55 @@
+#DEFINE BLD_BITS 32
+#DEFINE ARCHITECTURE "fox32"
+#INCLUDE "sys/rtl.hjk" // Printing functionality
+#INCLUDE "sys/os.hjk" // fox32rom bindings
+#INCLUDE "project.hjk"
+
+PUBLIC PROJECT_WINDOW: Window
+
+#ASM [
+menu_bar:
+.global menu_bar
+    .db 2
+    .dp menu_project_items
+    .dp menu_project_name
+    .dp menu_help_items
+    .dp menu_help_name
+menu_project_name:
+    .db 7 .ds "Project" .db 0
+menu_project_items:
+    .db 7
+    .db 12
+    .db 11 .ds "New Project" .db 0
+    .db 12 .ds "Open Project" .db 0
+    .db 4 .ds "Save" .db 0
+    .db 8 .ds "Add File" .db 0
+    .db 11 .ds "Remove File" .db 0
+    .db 5 .ds "Build" .db 0
+    .db 4 .ds "Run" .db 0
+menu_help_name:
+    .db 4 .ds "Help" .db 0
+menu_help_items:
+    .db 1
+    .db 16
+    .db 16 .ds "About Fox Studio" .db 0
+]
+
+EXTERN FN DisplaySplash(IN startup: UBYTE)
+FN HandleMenuClick (
+    IN menu : UWORD,
+    IN item : UWORD,
+)
+    IF menu == 1 THEN // Help Menu
+        CloseMenu(&menu_bar)
+        DisplaySplash(FALSE)
+    END
+END
+
+FN Project_InitWindow()
+    NewWindow(&PROJECT_WINDOW, "Fox Studio", 192, 256, 32, 32, &menu_bar, NULLPTR)
+    DrawFilledRectangleToOverlay(0,16,192,256,0xff1f1f1f,PROJECT_WINDOW.Overlay)
+    DrawStrToOverlay("example.fsp", (192/2)-(11*4), 16, 0xffffffff, 0xff1f1f1f, PROJECT_WINDOW.Overlay)
+    DrawFilledRectangleToOverlay(0,33,192,1,0xffffffff,PROJECT_WINDOW.Overlay)
+    DrawStrToOverlay("Fox32OS Base Library",0,34,0xffffffff,0xff1f1f1f,PROJECT_WINDOW.Overlay)
+    //DrawStrToOverlay("main.jkl",0,34+16,0xffffffff,0xff1f1f1f,PROJECT_WINDOW.Overlay)
+END

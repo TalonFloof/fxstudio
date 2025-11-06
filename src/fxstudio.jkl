@@ -1,0 +1,95 @@
+#ASM [
+    pop a0 // streamPtr
+    //pop a1 // arg0
+    // arg3 is now on the top of stack
+    call Main
+    call EndCurrentTask
+]
+
+// macro definitions to make the Rtl library happy
+#DEFINE BLD_BITS 32
+#DEFINE ARCHITECTURE "fox32"
+
+#INCLUDE "sys/rtl.hjk" // Printing functionality
+#INCLUDE "sys/os.hjk" // fox32rom bindings
+#INCLUDE "qoidecode.hjk"
+#INCLUDE "assets.hjk"
+#INCLUDE "project.hjk"
+
+TEXT_STREAM: ^File = NULLPTR
+
+FN (RtlPrintCallbackF) RtljPrintCallback(
+    IN byte : UBYTE,
+    IN context : ^VOID,
+)
+    IF TEXT_STREAM != 0 THEN
+        buffer : UBYTE[1]
+        buffer[0] = byte
+        Write(TEXT_STREAM, &buffer[0], 1)
+    END
+END
+FN RtljLockStream(IN handle : ^VOID) : UWORD
+    // dummy function to keep the compiler happy
+END
+FN RtljUnlockStream(
+    IN handle : ^VOID,
+    IN lockcontext : UWORD,
+)
+    // dummy function to keep the compiler happy
+END
+
+FN DisplaySplash(IN startup: UBYTE)
+    desc: QoiDesc
+    overlay := GetUnusedOverlay()
+    buffer := QoiDecode(&ASSET_SPLASH_QOI,(CAST &ASSET_SPLASH_QOI_END TO UWORD)-(CAST &ASSET_SPLASH_QOI TO UWORD),&desc)
+    IF buffer == NULLPTR THEN
+        RtlPrint("Splash Load Failed!\n")
+        EndCurrentTask()
+    END
+    MoveOverlay(overlay,320-(320/2),240-(240/2))
+    ResizeOverlay(overlay,320,240)
+    SetOverlayFramebufferPointer(overlay,buffer)
+    DrawStrToOverlay("(C) 2025", 148, 200, 0xff000000, 0xffffffff, overlay)
+    DrawStrToOverlay("Wyvern Software", 148+32, 216, 0xff000000, 0xffffffff, overlay)
+    EnableOverlay(overlay)
+    IF startup THEN
+        SleepTask(500)
+        Project_InitWindow()
+    END
+    WHILE GetMouseButtons() & 4 == 0 DO
+        YieldTask()
+    END
+    DisableOverlay(overlay)
+    FreeMemory(buffer)
+END
+
+FN Main(IN stream_local : ^File)
+    TEXT_STREAM = stream_local
+    DisplaySplash(TRUE)
+    running := TRUE
+    WHILE running DO
+        e : Event
+        GetNextWindowEvent(&PROJECT_WINDOW, &e)
+        IF e.Type == EVENT_TYPE_MOUSE_CLICK THEN
+            IF e.Body.Pos.Y < 16 THEN
+                IF e.Body.Pos.X < 8 THEN
+                    running = FALSE
+                ELSE
+                    StartDraggingWindow(&PROJECT_WINDOW)
+                END
+            END
+        ELSEIF e.Type == EVENT_TYPE_BUTTON_CLICK THEN
+            
+        ELSEIF e.Type == EVENT_TYPE_MENU_BAR_CLICK THEN
+            MenuBarClickEvent(&menu_bar, e.Body.Pos.X)
+        ELSEIF e.Type == EVENT_TYPE_MENU_UPDATE THEN
+            MenuUpdateEvent(&menu_bar, e.Body.MenuChoice.Menu, e.Body.MenuChoice.Item)
+        ELSEIF e.Type == EVENT_TYPE_MENU_CLICK THEN
+            HandleMenuClick(e.Body.MenuChoice.Menu, e.Body.MenuChoice.Item)
+        ELSEIF e.Type == EVENT_TYPE_MENU_ACK THEN
+            CloseMenu(&menu_bar)
+        END
+        YieldTask()
+    END
+    DestroyWindow(&PROJECT_WINDOW)
+END

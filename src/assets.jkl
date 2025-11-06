@@ -1,0 +1,8 @@
+#SECTION "data"
+#ASM [
+ASSET_SPLASH_QOI:
+.global ASSET_SPLASH_QOI
+.incbin "splash.qoi"
+ASSET_SPLASH_QOI_END:
+.global ASSET_SPLASH_QOI_END
+]

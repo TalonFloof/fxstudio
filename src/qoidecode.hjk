@@ -1,0 +1,13 @@
+#IF ( NOT ( DEFINED QOIDECODE_HJK ) )
+#DEFINE QOIDECODE_HJK 0
+
+STRUCT QoiDesc
+    width: ULONG,
+    height: ULONG,
+    channels: UBYTE,
+    colorspace: UBYTE,
+END
+
+EXTERN FN QoiDecode(IN data: ^VOID, IN size: ULONG, IN desc: ^QoiDesc): ^VOID
+
+#END
