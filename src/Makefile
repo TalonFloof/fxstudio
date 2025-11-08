@@ -1,13 +1,9 @@
-OUTPUT = apps/fxstudio.fxf
-
-include ../../application.mk
-
-OBJECTS = fxstudio.o sys/os.o sys/rom.o qoidecode.o project.o assets.o
+OBJECTS = src/fxstudio.o src/sys/os.o src/sys/rom.o src/qoidecode.o src/project.o src/assets.o
 .SUFFIXES: .o .asm .jkl
 
-all: ../../../base_image/$(OUTPUT)
+all: fxstudio.fxf
 
-../../../base_image/$(OUTPUT): $(OBJECTS)
+fxstudio.fxf: $(OBJECTS)
 	target=fox32 $(XRLINK) link $@ $(OBJECTS) $(RTLLIB)
 .jkl.asm:
 	$(JKL) target=fox32 $< $@
