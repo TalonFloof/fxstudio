@@ -4,10 +4,16 @@
 EXTERN PROJECT_WINDOW: Window
 EXTERN menu_bar : Menu
 
+STRUCT ProjFile
+    Path: UBYTE[256]
+END
+
 EXTERN FN HandleMenuClick (
     IN menu : UWORD,
     IN item : UWORD,
 )
 EXTERN FN Project_InitWindow()
+EXTERN FN Project_RefreshWindow()
+EXTERN FN Project_Cleanup()
 
 #END

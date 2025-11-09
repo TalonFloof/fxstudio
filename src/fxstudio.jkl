@@ -37,6 +37,17 @@ FN RtljUnlockStream(
 )
     // dummy function to keep the compiler happy
 END
+FN Assert (
+    IN condition : UBYTE,
+    IN label : ^UBYTE,
+    IN arg1 : UWORD,
+    IN arg2 : UWORD,
+)
+    IF NOT condition THEN
+        RtlPrint("Assertion error: %s\nArg1: %d\nArg2: %d\n", label, arg1, arg2)
+        EndCurrentTask()
+    END
+END
 
 FN DisplaySplash(IN startup: UBYTE)
     desc: QoiDesc
@@ -91,5 +102,5 @@ FN Main(IN stream_local : ^File)
         END
         YieldTask()
     END
-    DestroyWindow(&PROJECT_WINDOW)
+    Project_Cleanup()
 END

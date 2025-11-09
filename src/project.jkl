@@ -2,9 +2,12 @@
 #DEFINE ARCHITECTURE "fox32"
 #INCLUDE "sys/rtl.hjk" // Printing functionality
 #INCLUDE "sys/os.hjk" // fox32rom bindings
+#INCLUDE "sys/vec.hjk"
 #INCLUDE "project.hjk"
 
 PUBLIC PROJECT_WINDOW: Window
+VecOf(ProjFile,VecProjFile,VecProjFile_WithCapacity,VecProjFile_Null,VecProjFile_Free,VecProjFile_Grow,VecProjFile_ReserveOne,VecProjFile_ReserveAt,VecProjFile_Remove)
+PUBLIC project_files: VecProjFile
 
 #ASM [
 menu_bar:
@@ -34,6 +37,19 @@ menu_help_items:
     .db 16 .ds "About Fox Studio" .db 0
 ]
 
+FN GetNameFromPath(IN str: ^UBYTE): ^UBYTE
+    len := RtlMeasureString(str)
+    IF len == 0 THEN RETURN str END
+    ind: UWORD = (CAST str TO UWORD)+(len-1)
+    WHILE ind >= (CAST str TO UWORD) DO
+        IF (CAST ind TO ^UBYTE)^ == '/' THEN
+            RETURN CAST (ind + 1) TO ^UBYTE
+        END
+        ind -= 1
+    END
+    RETURN str
+END
+
 EXTERN FN DisplaySplash(IN startup: UBYTE)
 FN HandleMenuClick (
     IN menu : UWORD,
@@ -47,9 +63,23 @@ END
 
 FN Project_InitWindow()
     NewWindow(&PROJECT_WINDOW, "Fox Studio", 192, 256, 32, 32, &menu_bar, NULLPTR)
+    VecProjFile_WithCapacity(4,&project_files)
+    Project_RefreshWindow()
+END
+
+FN Project_RefreshWindow()
     DrawFilledRectangleToOverlay(0,16,192,256,0xff1f1f1f,PROJECT_WINDOW.Overlay)
     DrawStrToOverlay("example.fsp", (192/2)-(11*4), 16, 0xffffffff, 0xff1f1f1f, PROJECT_WINDOW.Overlay)
     DrawFilledRectangleToOverlay(0,33,192,1,0xffffffff,PROJECT_WINDOW.Overlay)
-    DrawStrToOverlay("Fox32OS Base Library",0,34,0xffffffff,0xff1f1f1f,PROJECT_WINDOW.Overlay)
-    //DrawStrToOverlay("main.jkl",0,34+16,0xffffffff,0xff1f1f1f,PROJECT_WINDOW.Overlay)
+    i := 0
+    WHILE i < project_files.Length DO
+        path := CAST &project_files.Elems[i].Path TO ^UBYTE
+        DrawStrToOverlay(GetNameFromPath(path),0,34,0xffffffff,0xff1f1f1f,PROJECT_WINDOW.Overlay)
+        i += 1
+    END
+END
+
+FN Project_Cleanup()
+    DestroyWindow(&PROJECT_WINDOW)
+    VecProjFile_Free(&project_files)
 END
